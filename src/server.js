@@ -17,6 +17,9 @@ const pool = require('./config/database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (Railway, Fly.io, etc.)
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet({
     contentSecurityPolicy: {
@@ -33,7 +36,7 @@ app.use(helmet({
 
 // CORS
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || true,
     credentials: true
 }));
 
