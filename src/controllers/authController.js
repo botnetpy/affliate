@@ -19,6 +19,7 @@ function setTokenCookie(res, token) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 }
@@ -154,7 +155,12 @@ async function adminLogin(req, res, next) {
 }
 
 async function logout(req, res) {
-    res.clearCookie('token');
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/'
+    });
     res.json({ message: 'Logged out successfully' });
 }
 
