@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Referrals — MagmaProp Affiliates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <button class="hamburger">☰</button>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>🔥 MagmaProp</h2>
+                <span>Affiliate Portal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/affiliate/"><span class="icon">📊</span> Dashboard</a>
+                <a href="/affiliate/referrals.html" class="active"><span class="icon">👥</span> Referrals</a>
+                <a href="/affiliate/earnings.html"><span class="icon">💰</span> Earnings</a>
+                <a href="/affiliate/payouts.html"><span class="icon">🏦</span> Payouts</a>
+                <a href="/affiliate/settings.html"><span class="icon">⚙️</span> Settings</a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-name" id="userName">-</div>
+                <div class="user-email" id="userEmail">-</div>
+                <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Referrals</h1>
+                    <p>All users referred through your link</p>
+                </div>
+            </div>
+
+            <div class="filters">
+                <select id="statusFilter" onchange="loadReferrals(1)">
+                    <option value="">All Statuses</option>
+                    <option value="signed_up">Signed Up</option>
+                    <option value="paid">Paid</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Payment</th>
+                                <th>Commission</th>
+                                <th>Rate</th>
+                                <th>Signed Up</th>
+                                <th>Paid At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="referralsTable">
+                            <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function loadReferrals(page = 1) {
+            try {
+                const status = document.getElementById('statusFilter').value;
+                let params = `?page=${page}&limit=20`;
+                if (status) params += `&status=${status}`;
+
+                const data = await API.referrals(params);
+                const tbody = document.getElementById('referralsTable');
+
+                if (data.referrals.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No referrals yet</p></div></td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.referrals.map(r => `
+                    <tr>
+                        <td>
+                            <div style="font-weight:500;color:var(--text-primary)">${r.referred_email || 'Unknown'}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted)">${r.referred_user_id}</div>
+                        </td>
+                        <td>${statusBadge(r.status)}</td>
+                        <td>${r.status === 'paid' ? formatCurrency(r.payment_amount) + ' ' + (r.currency || '') : '-'}</td>
+                        <td style="color:var(--success);font-weight:600">${r.status === 'paid' ? formatCurrency(r.commission_amount) : '-'}</td>
+                        <td>${r.commission_rate ? r.commission_rate + '%' : '-'}</td>
+                        <td>${formatDate(r.signed_up_at)}</td>
+                        <td>${r.paid_at ? formatDate(r.paid_at) : '-'}</td>
+                    </tr>
+                `).join('');
+
+                renderPagination(
+                    document.getElementById('pagination'),
+                    data.pagination,
+                    loadReferrals
+                );
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function handleLogout() {
+            try { await API.logout(); } catch(e) {}
+            window.location.href = '/affiliate/login.html';
+        }
+
+        loadReferrals();
+    </script>
+</body>
+</html>

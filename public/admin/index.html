@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — MagmaProp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <button class="hamburger">☰</button>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>🔥 MagmaProp</h2>
+            <span class="badge badge-approved">Admin</span>
+        </div>
+        <nav>
+            <a href="#" class="nav-item active" data-section="dashboard">📊 Dashboard</a>
+            <a href="#" class="nav-item" data-section="affiliates">👥 Affiliates</a>
+            <a href="#" class="nav-item" data-section="referrals">🔗 Referrals</a>
+            <a href="#" class="nav-item" data-section="payouts">💰 Payouts</a>
+            <a href="#" class="nav-item" data-section="webhooks">📡 Webhook Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="btn btn-ghost btn-block" onclick="handleLogout()">Sign Out</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <!-- ==================== DASHBOARD ==================== -->
+        <section id="section-dashboard" class="section active">
+            <div class="section-header">
+                <h1>Dashboard</h1>
+                <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+            </div>
+
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Affiliates</div>
+                    <div class="stat-value" id="statTotalAffiliates">—</div>
+                    <div class="stat-sub"><span id="statPendingAffiliates">0</span> pending approval</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Clicks</div>
+                    <div class="stat-value" id="statTotalClicks">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Paid Referrals</div>
+                    <div class="stat-value" id="statPaidReferrals">—</div>
+                    <div class="stat-sub"><span id="statTotalReferrals">0</span> total signups</div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-value" id="statTotalRevenue">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Commissions</div>
+                    <div class="stat-value" id="statTotalCommissions">—</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-label">Pending Payouts</div>
+                    <div class="stat-value" id="statPendingPayouts">—</div>
+                    <div class="stat-sub" id="statPendingPayoutAmount"></div>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <h3>Revenue & Commissions (Last 30 Days)</h3>
+                <canvas id="revenueChart" height="100"></canvas>
+            </div>
+
+            <div class="card">
+                <h3>Top Affiliates</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Code</th>
+                                <th>Paid Referrals</th>
+                                <th>Earnings</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topAffiliatesTable"><tr><td colspan="5" class="text-muted">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== AFFILIATES ==================== -->
+        <section id="section-affiliates" class="section">
+            <div class="section-header">
+                <h1>Affiliates</h1>
+            </div>
+
+            <div class="filters-bar">
+                <input type="text" id="affiliateSearch" class="input" placeholder="Search by name, email, or code..." />
+                <select id="affiliateStatusFilter" class="input input-select">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="suspended">Suspended</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadAffiliates()">Filter</button>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Code</th>
+                                <th>Status</th>
+                                <th>Clicks</th>
+                                <th>Paid</th>
+                                <th>Earnings</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="affiliatesTable"><tr><td colspan="9" class="text-muted">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="affiliatesPagination"></div>
+            </div>
+
+            <!-- Affiliate Detail Modal -->
+            <div id="affiliateModal" class="modal" style="display:none">
+                <div class="modal-overlay" onclick="closeAffiliateModal()"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modalAffiliateName">Affiliate Detail</h2>
+                        <button class="btn btn-ghost" onclick="closeAffiliateModal()">✕</button>
+                    </div>
+                    <div class="modal-body" id="modalBody">Loading...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== REFERRALS ==================== -->
+        <section id="section-referrals" class="section">
+            <div class="section-header">
+                <h1>Referrals</h1>
+            </div>
+
+            <div class="filters-bar">
+                <select id="referralStatusFilter" class="input input-select">
+                    <option value="">All Statuses</option>
+                    <option value="signed_up">Signed Up</option>
+                    <option value="paid">Paid</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadReferrals()">Filter</button>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Referred User</th>
+                                <th>Email</th>
+                                <th>Affiliate</th>
+                                <th>Status</th>
+                                <th>Payment</th>
+                                <th>Commission</th>
+                                <th>Rate</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="referralsTable"><tr><td colspan="8" class="text-muted">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="referralsPagination"></div>
+            </div>
+        </section>
+
+        <!-- ==================== PAYOUTS ==================== -->
+        <section id="section-payouts" class="section">
+            <div class="section-header">
+                <h1>Payouts</h1>
+            </div>
+
+            <div class="filters-bar">
+                <select id="payoutStatusFilter" class="input input-select">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadPayouts()">Filter</button>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Affiliate</th>
+                                <th>Amount</th>
+                                <th>Wallet</th>
+                                <th>Status</th>
+                                <th>Tx Hash</th>
+                                <th>Requested</th>
+                                <th>Processed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payoutsTable"><tr><td colspan="8" class="text-muted">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="payoutsPagination"></div>
+            </div>
+
+            <!-- Payout Process Modal -->
+            <div id="payoutModal" class="modal" style="display:none">
+                <div class="modal-overlay" onclick="closePayoutModal()"></div>
+                <div class="modal-content modal-sm">
+                    <div class="modal-header">
+                        <h2>Process Payout</h2>
+                        <button class="btn btn-ghost" onclick="closePayoutModal()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="payoutForm">
+                            <input type="hidden" id="payoutId">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="payoutStatus" class="input input-select" required>
+                                    <option value="processing">Processing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="failed">Failed</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Transaction Hash</label>
+                                <input type="text" id="payoutTxHash" class="input" placeholder="0x...">
+                            </div>
+                            <div class="form-group">
+                                <label>Notes</label>
+                                <textarea id="payoutNotes" class="input" rows="3" placeholder="Optional notes..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Update Payout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== WEBHOOK LOGS ==================== -->
+        <section id="section-webhooks" class="section">
+            <div class="section-header">
+                <h1>Webhook Logs</h1>
+            </div>
+
+            <div class="filters-bar">
+                <select id="webhookEventFilter" class="input input-select">
+                    <option value="">All Events</option>
+                    <option value="signup">Signup</option>
+                    <option value="payment">Payment</option>
+                </select>
+                <select id="webhookStatusFilter" class="input input-select">
+                    <option value="">All Statuses</option>
+                    <option value="received">Received</option>
+                    <option value="processed">Processed</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadWebhookLogs()">Filter</button>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Status</th>
+                                <th>IP</th>
+                                <th>Error</th>
+                                <th>Payload</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="webhooksTable"><tr><td colspan="6" class="text-muted">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="webhooksPagination"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+    // ==================== NAVIGATION ====================
+    let revenueChart = null;
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = item.dataset.section;
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`section-${section}`).classList.add('active');
+
+            // Load data when switching sections
+            switch (section) {
+                case 'dashboard': loadDashboard(); break;
+                case 'affiliates': loadAffiliates(); break;
+                case 'referrals': loadReferrals(); break;
+                case 'payouts': loadPayouts(); break;
+                case 'webhooks': loadWebhookLogs(); break;
+            }
+        });
+    });
+
+    // ==================== DASHBOARD ====================
+    async function loadDashboard() {
+        try {
+            const data = await API.dashboard();
+            const s = data.stats;
+
+            document.getElementById('statTotalAffiliates').textContent = parseInt(s.total_affiliates).toLocaleString();
+            document.getElementById('statPendingAffiliates').textContent = parseInt(s.pending_affiliates).toLocaleString();
+            document.getElementById('statTotalClicks').textContent = parseInt(s.total_clicks).toLocaleString();
+            document.getElementById('statPaidReferrals').textContent = parseInt(s.paid_referrals).toLocaleString();
+            document.getElementById('statTotalReferrals').textContent = parseInt(s.total_referrals).toLocaleString();
+            document.getElementById('statTotalRevenue').textContent = formatCurrency(s.total_revenue);
+            document.getElementById('statTotalCommissions').textContent = formatCurrency(s.total_commissions);
+            document.getElementById('statPendingPayouts').textContent = parseInt(s.pending_payouts).toLocaleString();
+            document.getElementById('statPendingPayoutAmount').textContent = formatCurrency(s.pending_payout_amount) + ' pending';
+
+            renderRevenueChart(data.revenue_over_time);
+            renderTopAffiliates(data.top_affiliates);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    function renderRevenueChart(data) {
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        if (revenueChart) revenueChart.destroy();
+
+        revenueChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                datasets: [
+                    {
+                        label: 'Revenue',
+                        data: data.map(d => parseFloat(d.revenue)),
+                        backgroundColor: 'rgba(255, 107, 53, 0.6)',
+                        borderColor: '#ff6b35',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Commissions',
+                        data: data.map(d => parseFloat(d.commissions)),
+                        backgroundColor: 'rgba(79, 172, 254, 0.6)',
+                        borderColor: '#4facfe',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: '#94a3b8' } } },
+                scales: {
+                    x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                    y: { ticks: { color: '#64748b', callback: v => '$' + v }, grid: { color: 'rgba(148,163,184,0.1)' } }
+                }
+            }
+        });
+    }
+
+    function renderTopAffiliates(affiliates) {
+        const tbody = document.getElementById('topAffiliatesTable');
+        if (!affiliates.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No data yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = affiliates.map(a => `
+            <tr>
+                <td><strong>${esc(a.name)}</strong></td>
+                <td>${esc(a.email)}</td>
+                <td><code>${esc(a.referral_code)}</code></td>
+                <td>${a.paid_referrals}</td>
+                <td><strong>${formatCurrency(a.total_earnings)}</strong></td>
+            </tr>
+        `).join('');
+    }
+
+    // ==================== AFFILIATES ====================
+    let affiliatesPage = 1;
+
+    async function loadAffiliates(page = 1) {
+        affiliatesPage = page;
+        const search = document.getElementById('affiliateSearch').value;
+        const status = document.getElementById('affiliateStatusFilter').value;
+        let params = `?page=${page}`;
+        if (search) params += `&search=${encodeURIComponent(search)}`;
+        if (status) params += `&status=${status}`;
+
+        try {
+            const data = await API.affiliates(params);
+            const tbody = document.getElementById('affiliatesTable');
+
+            if (!data.affiliates.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-muted">No affiliates found</td></tr>';
+                document.getElementById('affiliatesPagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = data.affiliates.map(a => `
+                <tr>
+                    <td><strong>${esc(a.name)}</strong></td>
+                    <td>${esc(a.email)}</td>
+                    <td><code>${esc(a.referral_code)}</code></td>
+                    <td>${statusBadge(a.status)}</td>
+                    <td>${parseInt(a.total_clicks).toLocaleString()}</td>
+                    <td>${parseInt(a.paid_referrals).toLocaleString()}</td>
+                    <td>${formatCurrency(a.total_earnings)}</td>
+                    <td>${formatDate(a.created_at)}</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-ghost btn-xs" onclick="viewAffiliate(${a.id})" title="View">👁</button>
+                        ${a.status === 'pending' ? `
+                            <button class="btn btn-success btn-xs" onclick="changeAffiliateStatus(${a.id},'approved')" title="Approve">✓</button>
+                            <button class="btn btn-danger btn-xs" onclick="changeAffiliateStatus(${a.id},'rejected')" title="Reject">✗</button>
+                        ` : ''}
+                        ${a.status === 'approved' ? `
+                            <button class="btn btn-warning btn-xs" onclick="changeAffiliateStatus(${a.id},'suspended')" title="Suspend">⏸</button>
+                        ` : ''}
+                        ${a.status === 'suspended' ? `
+                            <button class="btn btn-success btn-xs" onclick="changeAffiliateStatus(${a.id},'approved')" title="Reactivate">▶</button>
+                        ` : ''}
+                        ${a.status === 'rejected' ? `
+                            <button class="btn btn-success btn-xs" onclick="changeAffiliateStatus(${a.id},'approved')" title="Approve">✓</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination(document.getElementById('affiliatesPagination'), data.pagination, loadAffiliates);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    document.getElementById('affiliateSearch').addEventListener('keydown', e => { if (e.key === 'Enter') loadAffiliates(); });
+
+    async function changeAffiliateStatus(id, status) {
+        if (!confirm(`Set affiliate status to "${status}"?`)) return;
+        try {
+            await API.updateAffiliateStatus(id, status);
+            showToast(`Affiliate ${status}`);
+            loadAffiliates(affiliatesPage);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    async function viewAffiliate(id) {
+        const modal = document.getElementById('affiliateModal');
+        const body = document.getElementById('modalBody');
+        modal.style.display = 'flex';
+        body.innerHTML = '<p class="text-muted">Loading...</p>';
+
+        try {
+            const data = await API.affiliateDetail(id);
+            const a = data.affiliate;
+            document.getElementById('modalAffiliateName').textContent = a.name;
+
+            let html = `
+                <div class="stats-grid stats-grid-compact">
+                    <div class="stat-card"><div class="stat-label">Status</div><div class="stat-value">${statusBadge(a.status)}</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Clicks</div><div class="stat-value">${parseInt(a.total_clicks).toLocaleString()}</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Signups</div><div class="stat-value">${parseInt(a.total_referrals_count).toLocaleString()}</div></div>
+                    <div class="stat-card"><div class="stat-label">Paid Referrals</div><div class="stat-value">${parseInt(a.paid_referrals).toLocaleString()}</div></div>
+                    <div class="stat-card"><div class="stat-label">Revenue Generated</div><div class="stat-value">${formatCurrency(a.total_revenue_generated)}</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Earnings</div><div class="stat-value">${formatCurrency(a.total_earnings)}</div></div>
+                    <div class="stat-card"><div class="stat-label">Paid Out</div><div class="stat-value">${formatCurrency(a.total_paid_out)}</div></div>
+                    <div class="stat-card"><div class="stat-label">Pending Payouts</div><div class="stat-value">${formatCurrency(a.pending_payouts)}</div></div>
+                </div>
+                <div class="detail-info">
+                    <p><strong>Email:</strong> ${esc(a.email)}</p>
+                    <p><strong>Referral Code:</strong> <code>${esc(a.referral_code)}</code></p>
+                    <p><strong>Wallet:</strong> <code>${esc(a.wallet_address || 'Not set')}</code></p>
+                    <p><strong>Joined:</strong> ${formatDateTime(a.created_at)}</p>
+                </div>
+            `;
+
+            if (data.referrals.length) {
+                html += `<h3 style="margin-top:1.5rem">Recent Referrals</h3>
+                <div class="table-responsive"><table><thead><tr><th>User</th><th>Email</th><th>Status</th><th>Payment</th><th>Commission</th><th>Date</th></tr></thead><tbody>`;
+                html += data.referrals.map(r => `
+                    <tr>
+                        <td>${esc(r.referred_user_id)}</td>
+                        <td>${esc(r.referred_email || '-')}</td>
+                        <td>${statusBadge(r.status)}</td>
+                        <td>${r.status === 'paid' ? formatCurrency(r.payment_amount) : '-'}</td>
+                        <td>${r.status === 'paid' ? formatCurrency(r.commission_amount) + ' (' + r.commission_rate + '%)' : '-'}</td>
+                        <td>${formatDate(r.created_at)}</td>
+                    </tr>
+                `).join('');
+                html += '</tbody></table></div>';
+            }
+
+            body.innerHTML = html;
+        } catch (err) {
+            body.innerHTML = `<p class="text-danger">${err.message}</p>`;
+        }
+    }
+
+    function closeAffiliateModal() {
+        document.getElementById('affiliateModal').style.display = 'none';
+    }
+
+    // ==================== REFERRALS ====================
+    async function loadReferrals(page = 1) {
+        const status = document.getElementById('referralStatusFilter').value;
+        let params = `?page=${page}`;
+        if (status) params += `&status=${status}`;
+
+        try {
+            const data = await API.referrals(params);
+            const tbody = document.getElementById('referralsTable');
+
+            if (!data.referrals.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No referrals found</td></tr>';
+                document.getElementById('referralsPagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = data.referrals.map(r => `
+                <tr>
+                    <td>${esc(r.referred_user_id)}</td>
+                    <td>${esc(r.referred_email || '-')}</td>
+                    <td><strong>${esc(r.affiliate_name)}</strong> <code>${esc(r.referral_code)}</code></td>
+                    <td>${statusBadge(r.status)}</td>
+                    <td>${r.status === 'paid' ? formatCurrency(r.payment_amount) + ' ' + (r.currency || '') : '-'}</td>
+                    <td>${r.status === 'paid' ? formatCurrency(r.commission_amount) : '-'}</td>
+                    <td>${r.commission_rate ? r.commission_rate + '%' : '-'}</td>
+                    <td>${formatDateTime(r.status === 'paid' ? r.paid_at : r.signed_up_at)}</td>
+                </tr>
+            `).join('');
+
+            renderPagination(document.getElementById('referralsPagination'), data.pagination, loadReferrals);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    // ==================== PAYOUTS ====================
+    async function loadPayouts(page = 1) {
+        const status = document.getElementById('payoutStatusFilter').value;
+        let params = `?page=${page}`;
+        if (status) params += `&status=${status}`;
+
+        try {
+            const data = await API.payouts(params);
+            const tbody = document.getElementById('payoutsTable');
+
+            if (!data.payouts.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No payouts found</td></tr>';
+                document.getElementById('payoutsPagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = data.payouts.map(p => `
+                <tr>
+                    <td><strong>${esc(p.affiliate_name)}</strong></td>
+                    <td><strong>${formatCurrency(p.amount)}</strong></td>
+                    <td><code class="wallet-code">${esc(truncateWallet(p.wallet_address))}</code></td>
+                    <td>${statusBadge(p.status)}</td>
+                    <td>${p.transaction_hash ? `<code class="wallet-code">${esc(truncateWallet(p.transaction_hash))}</code>` : '-'}</td>
+                    <td>${formatDateTime(p.requested_at)}</td>
+                    <td>${formatDateTime(p.processed_at)}</td>
+                    <td>
+                        ${p.status === 'pending' || p.status === 'processing' ? `
+                            <button class="btn btn-primary btn-xs" onclick="openPayoutModal(${p.id})">Process</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination(document.getElementById('payoutsPagination'), data.pagination, loadPayouts);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    function openPayoutModal(id) {
+        document.getElementById('payoutId').value = id;
+        document.getElementById('payoutStatus').value = 'processing';
+        document.getElementById('payoutTxHash').value = '';
+        document.getElementById('payoutNotes').value = '';
+        document.getElementById('payoutModal').style.display = 'flex';
+    }
+
+    function closePayoutModal() {
+        document.getElementById('payoutModal').style.display = 'none';
+    }
+
+    document.getElementById('payoutForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('payoutId').value;
+        const data = {
+            status: document.getElementById('payoutStatus').value,
+            transaction_hash: document.getElementById('payoutTxHash').value || undefined,
+            notes: document.getElementById('payoutNotes').value || undefined
+        };
+        try {
+            await API.processPayout(id, data);
+            showToast('Payout updated');
+            closePayoutModal();
+            loadPayouts();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // ==================== WEBHOOK LOGS ====================
+    async function loadWebhookLogs(page = 1) {
+        const event_type = document.getElementById('webhookEventFilter').value;
+        const status = document.getElementById('webhookStatusFilter').value;
+        let params = `?page=${page}`;
+        if (event_type) params += `&event_type=${event_type}`;
+        if (status) params += `&status=${status}`;
+
+        try {
+            const data = await API.webhookLogs(params);
+            const tbody = document.getElementById('webhooksTable');
+
+            if (!data.logs.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No webhook logs</td></tr>';
+                document.getElementById('webhooksPagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = data.logs.map(log => `
+                <tr>
+                    <td>${statusBadge(log.event_type)}</td>
+                    <td>${statusBadge(log.status)}</td>
+                    <td>${esc(log.ip_address || '-')}</td>
+                    <td class="text-danger">${esc(log.error_message || '-')}</td>
+                    <td><button class="btn btn-ghost btn-xs" onclick="alert(JSON.stringify(${esc(JSON.stringify(log.payload))}, null, 2))">View</button></td>
+                    <td>${formatDateTime(log.created_at)}</td>
+                </tr>
+            `).join('');
+
+            renderPagination(document.getElementById('webhooksPagination'), data.pagination, loadWebhookLogs);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    // ==================== HELPERS ====================
+    function esc(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
+    }
+
+    function truncateWallet(addr) {
+        if (!addr || addr.length <= 16) return addr || '';
+        return addr.slice(0, 8) + '...' + addr.slice(-6);
+    }
+
+    // ==================== INIT ====================
+    loadDashboard();
+    </script>
+</body>
+</html>

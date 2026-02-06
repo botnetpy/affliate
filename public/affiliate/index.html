@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — MagmaProp Affiliates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <button class="hamburger">☰</button>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <h2>🔥 MagmaProp</h2>
+                <span>Affiliate Portal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/affiliate/" class="active"><span class="icon">📊</span> Dashboard</a>
+                <a href="/affiliate/referrals.html"><span class="icon">👥</span> Referrals</a>
+                <a href="/affiliate/earnings.html"><span class="icon">💰</span> Earnings</a>
+                <a href="/affiliate/payouts.html"><span class="icon">🏦</span> Payouts</a>
+                <a href="/affiliate/settings.html"><span class="icon">⚙️</span> Settings</a>
+            </nav>
+            <div class="sidebar-user" id="sidebarUser">
+                <div class="user-name" id="userName">-</div>
+                <div class="user-email" id="userEmail">-</div>
+                <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Dashboard</h1>
+                    <p>Overview of your affiliate performance</p>
+                </div>
+            </div>
+
+            <!-- Referral Link -->
+            <div class="card" style="margin-bottom:1.5rem">
+                <div class="card-body">
+                    <h3 style="margin-bottom:0.75rem; font-size:0.9375rem">Your Referral Link</h3>
+                    <div class="ref-link-box">
+                        <input type="text" id="refLink" readonly>
+                        <button class="btn-copy" onclick="copyRefLink()">📋 Copy</button>
+                    </div>
+                    <p style="font-size:0.8125rem; color:var(--text-muted)">Share this link to earn commissions on every paid referral</p>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-icon">👆</div>
+                    <div class="stat-label">Total Clicks</div>
+                    <div class="stat-value" id="statClicks">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-label">Signups</div>
+                    <div class="stat-value" id="statSignups">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-label">Paid Conversions</div>
+                    <div class="stat-value" id="statConversions">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label">Total Earnings</div>
+                    <div class="stat-value" id="statEarnings">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-label">Available Balance</div>
+                    <div class="stat-value" id="statPending">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-label">Conversion Rate</div>
+                    <div class="stat-value" id="statRate">-</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Performance — Last 30 Days</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        let performanceChart = null;
+
+        async function loadDashboard() {
+            try {
+                const [dashData, linkData] = await Promise.all([
+                    API.dashboard(),
+                    API.link()
+                ]);
+
+                const s = dashData.stats;
+                document.getElementById('statClicks').textContent = s.total_clicks.toLocaleString();
+                document.getElementById('statSignups').textContent = s.total_signups.toLocaleString();
+                document.getElementById('statConversions').textContent = s.paid_conversions.toLocaleString();
+                document.getElementById('statEarnings').textContent = formatCurrency(s.total_earnings);
+                document.getElementById('statPending').textContent = formatCurrency(s.pending_earnings);
+                document.getElementById('statRate').textContent = s.conversion_rate + '%';
+
+                document.getElementById('refLink').value = linkData.referral_link;
+
+                renderChart(dashData);
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            if (performanceChart) performanceChart.destroy();
+
+            // Merge click data and referral data by date
+            const dateMap = {};
+            data.clicks_per_day.forEach(d => {
+                dateMap[d.date] = { ...dateMap[d.date], clicks: parseInt(d.clicks) };
+            });
+            data.performance.forEach(d => {
+                dateMap[d.date] = {
+                    ...dateMap[d.date],
+                    signups: parseInt(d.signups),
+                    conversions: parseInt(d.conversions),
+                    earnings: parseFloat(d.earnings)
+                };
+            });
+
+            const dates = Object.keys(dateMap).sort();
+            const clicks = dates.map(d => dateMap[d]?.clicks || 0);
+            const signups = dates.map(d => dateMap[d]?.signups || 0);
+            const conversions = dates.map(d => dateMap[d]?.conversions || 0);
+
+            performanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    datasets: [
+                        {
+                            label: 'Clicks',
+                            data: clicks,
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Signups',
+                            data: signups,
+                            backgroundColor: 'rgba(249, 115, 22, 0.6)',
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Conversions',
+                            data: conversions,
+                            backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { size: 12 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b', font: { size: 11 } },
+                            grid: { color: 'rgba(42, 48, 66, 0.5)' }
+                        },
+                        y: {
+                            ticks: { color: '#64748b', font: { size: 11 } },
+                            grid: { color: 'rgba(42, 48, 66, 0.5)' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function copyRefLink() {
+            const input = document.getElementById('refLink');
+            navigator.clipboard.writeText(input.value).then(() => {
+                showToast('Referral link copied!');
+            }).catch(() => {
+                input.select();
+                document.execCommand('copy');
+                showToast('Referral link copied!');
+            });
+        }
+
+        async function handleLogout() {
+            try {
+                await API.logout();
+            } catch (e) {}
+            window.location.href = '/affiliate/login.html';
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

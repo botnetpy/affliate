@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payouts — MagmaProp Affiliates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <button class="hamburger">☰</button>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>🔥 MagmaProp</h2>
+                <span>Affiliate Portal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/affiliate/"><span class="icon">📊</span> Dashboard</a>
+                <a href="/affiliate/referrals.html"><span class="icon">👥</span> Referrals</a>
+                <a href="/affiliate/earnings.html"><span class="icon">💰</span> Earnings</a>
+                <a href="/affiliate/payouts.html" class="active"><span class="icon">🏦</span> Payouts</a>
+                <a href="/affiliate/settings.html"><span class="icon">⚙️</span> Settings</a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-name" id="userName">-</div>
+                <div class="user-email" id="userEmail">-</div>
+                <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Payouts</h1>
+                    <p>Request and track your payouts</p>
+                </div>
+            </div>
+
+            <!-- Request Payout -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Request Payout</h3>
+                </div>
+                <div class="card-body">
+                    <div id="payoutAlert" class="alert" style="display:none"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Amount (USD)</label>
+                            <input type="number" id="payoutAmount" step="0.01" min="0.01" placeholder="Enter amount">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Wallet Address</label>
+                            <input type="text" id="payoutWallet" readonly style="color:var(--text-muted)">
+                        </div>
+                        <button class="btn btn-primary" onclick="submitPayout()" id="payoutBtn">Request Payout</button>
+                    </div>
+                    <p style="font-size:0.8125rem;color:var(--text-muted);margin-top:0.75rem">
+                        Available balance: <span id="availBalance" style="color:var(--success);font-weight:600">$0.00</span>
+                        · Update wallet address in <a href="/affiliate/settings.html">Settings</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Payout History -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Payout History</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Amount</th>
+                                <th>Wallet</th>
+                                <th>Status</th>
+                                <th>TX Hash</th>
+                                <th>Requested</th>
+                                <th>Processed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payoutsTable">
+                            <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function loadPayouts(page = 1) {
+            try {
+                const [payoutsData, earningsData] = await Promise.all([
+                    API.payouts(`?page=${page}&limit=20`),
+                    API.earnings()
+                ]);
+
+                document.getElementById('availBalance').textContent = formatCurrency(earningsData.available_balance);
+                document.getElementById('payoutWallet').value = ''; // Will be loaded with profile
+
+                // Load wallet from link endpoint (has affiliate info)
+                try {
+                    const linkData = await API.link();
+                    // wallet is in profile, but we can grab from the cookie/session
+                } catch(e) {}
+
+                const tbody = document.getElementById('payoutsTable');
+                if (payoutsData.payouts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🏦</div><p>No payouts yet</p></div></td></tr>';
+                } else {
+                    tbody.innerHTML = payoutsData.payouts.map(p => `
+                        <tr>
+                            <td style="font-weight:500;color:var(--text-primary)">#${p.id}</td>
+                            <td style="font-weight:600">${formatCurrency(p.amount)}</td>
+                            <td style="font-size:0.75rem;font-family:monospace;max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${p.wallet_address}">${p.wallet_address}</td>
+                            <td>${statusBadge(p.status)}</td>
+                            <td style="font-size:0.75rem;font-family:monospace;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${p.transaction_hash || ''}">${p.transaction_hash || '-'}</td>
+                            <td>${formatDate(p.requested_at)}</td>
+                            <td>${p.processed_at ? formatDate(p.processed_at) : '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                renderPagination(document.getElementById('pagination'), payoutsData.pagination, loadPayouts);
+
+                // Set wallet in form
+                if (payoutsData.payouts.length > 0) {
+                    document.getElementById('payoutWallet').value = payoutsData.payouts[0].wallet_address;
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Load wallet address separately
+        async function loadWallet() {
+            try {
+                // We need to get the wallet from the dashboard or profile
+                const dashData = await API.dashboard();
+                // The wallet address comes from the affiliate session
+            } catch(e) {}
+        }
+
+        async function submitPayout() {
+            const btn = document.getElementById('payoutBtn');
+            const alert = document.getElementById('payoutAlert');
+            const amount = document.getElementById('payoutAmount').value;
+
+            if (!amount || parseFloat(amount) <= 0) {
+                alert.className = 'alert alert-error';
+                alert.textContent = 'Please enter a valid amount';
+                alert.style.display = 'flex';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            alert.style.display = 'none';
+
+            try {
+                await API.requestPayout({ amount: parseFloat(amount) });
+                showToast('Payout request submitted!');
+                document.getElementById('payoutAmount').value = '';
+                loadPayouts();
+            } catch (err) {
+                alert.className = 'alert alert-error';
+                alert.textContent = err.message;
+                alert.style.display = 'flex';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Request Payout';
+            }
+        }
+
+        async function handleLogout() {
+            try { await API.logout(); } catch(e) {}
+            window.location.href = '/affiliate/login.html';
+        }
+
+        loadPayouts();
+    </script>
+</body>
+</html>

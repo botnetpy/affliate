@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings — MagmaProp Affiliates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <button class="hamburger">☰</button>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>🔥 MagmaProp</h2>
+                <span>Affiliate Portal</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/affiliate/"><span class="icon">📊</span> Dashboard</a>
+                <a href="/affiliate/referrals.html"><span class="icon">👥</span> Referrals</a>
+                <a href="/affiliate/earnings.html" class="active"><span class="icon">💰</span> Earnings</a>
+                <a href="/affiliate/payouts.html"><span class="icon">🏦</span> Payouts</a>
+                <a href="/affiliate/settings.html"><span class="icon">⚙️</span> Settings</a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-name" id="userName">-</div>
+                <div class="user-email" id="userEmail">-</div>
+                <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Earnings</h1>
+                    <p>Your commission breakdown and history</p>
+                </div>
+            </div>
+
+            <!-- Earnings Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-label">Total Earned</div>
+                    <div class="stat-value" id="totalEarned">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-label">Available Balance</div>
+                    <div class="stat-value" id="availableBalance" style="color:var(--success)">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📤</div>
+                    <div class="stat-label">Total Paid Out</div>
+                    <div class="stat-value" id="totalPaidOut">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-label">Pending Payouts</div>
+                    <div class="stat-value" id="pendingPayouts">-</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Commission Info -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Commission Structure</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:flex;flex-direction:column;gap:1rem">
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;background:var(--bg-input);border-radius:var(--radius-sm)">
+                                <div>
+                                    <div style="font-weight:600">Tier 1 — First 50 Referrals</div>
+                                    <div style="font-size:0.8125rem;color:var(--text-muted)">One-time commission per referred user</div>
+                                </div>
+                                <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">10%</div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;background:var(--bg-input);border-radius:var(--radius-sm)">
+                                <div>
+                                    <div style="font-weight:600">Tier 2 — After 50 Referrals</div>
+                                    <div style="font-size:0.8125rem;color:var(--text-muted)">One-time commission per referred user</div>
+                                </div>
+                                <div style="font-size:1.5rem;font-weight:700;color:var(--success)">20%</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:1.25rem">
+                            <div style="font-size:0.8125rem;color:var(--text-muted)">Your paid referrals: <span id="paidRefs" style="color:var(--text-primary);font-weight:600">0</span></div>
+                            <div style="font-size:0.8125rem;color:var(--text-muted)">Average commission: <span id="avgCommission" style="color:var(--text-primary);font-weight:600">$0.00</span></div>
+                            <div style="font-size:0.8125rem;color:var(--text-muted)">Highest commission: <span id="maxCommission" style="color:var(--text-primary);font-weight:600">$0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Monthly Earnings</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="earningsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Breakdown Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Monthly Breakdown</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Conversions</th>
+                                <th>Earnings</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTable">
+                            <tr><td colspan="3"><div class="loading"><div class="spinner"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        let earningsChart = null;
+
+        async function loadEarnings() {
+            try {
+                const data = await API.earnings();
+
+                document.getElementById('totalEarned').textContent = formatCurrency(data.total_earned);
+                document.getElementById('availableBalance').textContent = formatCurrency(data.available_balance);
+                document.getElementById('totalPaidOut').textContent = formatCurrency(data.total_paid_out);
+                document.getElementById('pendingPayouts').textContent = formatCurrency(data.pending_payouts);
+                document.getElementById('paidRefs').textContent = data.paid_referrals;
+                document.getElementById('avgCommission').textContent = formatCurrency(data.avg_commission);
+                document.getElementById('maxCommission').textContent = formatCurrency(data.max_commission);
+
+                // Monthly table
+                const tbody = document.getElementById('monthlyTable');
+                if (data.monthly_breakdown.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><p>No earnings yet</p></div></td></tr>';
+                } else {
+                    tbody.innerHTML = data.monthly_breakdown.map(m => `
+                        <tr>
+                            <td style="font-weight:500;color:var(--text-primary)">${m.month}</td>
+                            <td>${m.conversions}</td>
+                            <td style="color:var(--success);font-weight:600">${formatCurrency(m.earnings)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Chart
+                renderEarningsChart(data.monthly_breakdown.reverse());
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        function renderEarningsChart(monthly) {
+            const ctx = document.getElementById('earningsChart').getContext('2d');
+            if (earningsChart) earningsChart.destroy();
+
+            earningsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthly.map(m => m.month),
+                    datasets: [{
+                        label: 'Earnings',
+                        data: monthly.map(m => parseFloat(m.earnings)),
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#f97316'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b' },
+                            grid: { color: 'rgba(42, 48, 66, 0.5)' }
+                        },
+                        y: {
+                            ticks: { color: '#64748b', callback: v => '$' + v },
+                            grid: { color: 'rgba(42, 48, 66, 0.5)' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        async function handleLogout() {
+            try { await API.logout(); } catch(e) {}
+            window.location.href = '/affiliate/login.html';
+        }
+
+        loadEarnings();
+    </script>
+</body>
+</html>
