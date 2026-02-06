@@ -6,7 +6,7 @@ const API = {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin'
+            credentials: 'include'
         };
         if (body) options.body = JSON.stringify(body);
 

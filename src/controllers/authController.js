@@ -15,10 +15,11 @@ function generateReferralCode() {
 }
 
 function setTokenCookie(res, token) {
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
@@ -155,10 +156,11 @@ async function adminLogin(req, res, next) {
 }
 
 async function logout(req, res) {
+    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         path: '/'
     });
     res.json({ message: 'Logged out successfully' });

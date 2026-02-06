@@ -6,7 +6,7 @@ const API = {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin'
+            credentials: 'include'
         };
         if (body) options.body = JSON.stringify(body);
 
@@ -115,6 +115,8 @@ function initSidebar() {
 
 async function handleLogout() {
     try { await API.logout(); } catch(e) {}
+    // Clear cookie client-side as fallback
+    document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     window.location.href = '/admin/login.html';
 }
 
